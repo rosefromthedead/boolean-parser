@@ -34,10 +34,10 @@ eatParen (')':cs) = (Just RightParen, cs)
 eatParen x = (Nothing, x)
 
 eatName :: String -> String -> (Maybe Token, String)
-eatName soFar (c:cs) =
-    if contains validNameChars c
-        then eatName (soFar ++ [c]) cs
-        else (if soFar == "" then (Nothing, (c:cs)) else (Just $ NameToken soFar, (c:cs)))
+eatName soFar (c:cs)
+  | contains validNameChars c = eatName (soFar ++ [c]) cs
+  | soFar == "" = (Nothing, c:cs)
+  | otherwise = (Just $ NameToken soFar, c:cs)
 eatName [] [] = (Nothing, [])
 eatName soFar [] = (Just $ NameToken soFar, "")
 
