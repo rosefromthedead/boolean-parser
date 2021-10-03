@@ -1,26 +1,14 @@
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
 
-data NullaryOp = TrueOp | FalseOp deriving (Ord, Eq, Show)
-data UnaryOp = Not deriving (Ord, Eq, Show)
-data BinaryOp = And | Or | Xor | Implies | Equivalent deriving (Ord, Eq, Show)
-data Op = Nullary NullaryOp | Unary UnaryOp | Binary BinaryOp deriving (Ord, Eq, Show)
+data Unary = Not deriving (Ord, Eq, Show)
+data Binary = And | Or | Xor | Implies | Equivalent deriving (Ord, Eq, Show)
+data Op = UnaryOp Unary | BinaryOp Binary deriving (Ord, Eq, Show)
 data Token = OpToken Op | NameToken String | LeftParen | RightParen deriving (Eq, Show)
-data SyntaxNode = NullaryNode NullaryOp | UnaryNode UnaryOp SyntaxNode | BinaryNode BinaryOp SyntaxNode SyntaxNode | Name String deriving (Show)
+data SyntaxNode = UnaryNode Unary SyntaxNode | BinaryNode SyntaxNode Binary SyntaxNode | NameNode String deriving (Show)
 
-cumulativeCheck :: (Eq a) => a -> a -> Bool -> Bool
-cumulativeCheck needle element soFar = soFar || needle == element
-
-contains :: (Eq a) => [a] -> a -> Bool
-contains haystack needle = foldr (cumulativeCheck needle) False haystack
-
-validChars = "abcdefghijklmnopqrstuvwxyz&|^()¬⇒≡ "
 validNameChars = "abcdefghijklmnopqrstuvwxyz"
-
-usesValidSymbols :: String -> Bool
-usesValidSymbols [] = True
-usesValidSymbols (c:cs) =
-    contains validChars c && usesValidSymbols cs
+validChars = validNameChars ++ "&|^()¬⇒≡ "
 
 -- Whitespace brackets names ops
 
@@ -35,19 +23,19 @@ eatParen x = (Nothing, x)
 
 eatName :: String -> String -> (Maybe Token, String)
 eatName soFar (c:cs)
-  | contains validNameChars c = eatName (soFar ++ [c]) cs
+  | c `elem` validNameChars = eatName (soFar ++ [c]) cs
   | soFar == "" = (Nothing, c:cs)
   | otherwise = (Just $ NameToken soFar, c:cs)
 eatName [] [] = (Nothing, [])
 eatName soFar [] = (Just $ NameToken soFar, "")
 
 eatOp :: String -> (Maybe Token, String)
-eatOp ('¬':cs) = (Just $ OpToken $ Unary Not, cs)
-eatOp ('&':cs) = (Just $ OpToken $ Binary And, cs)
-eatOp ('|':cs) = (Just $ OpToken $ Binary Or, cs)
-eatOp ('^':cs) = (Just $ OpToken $ Binary Xor, cs)
-eatOp ('⇒':cs) = (Just $ OpToken $ Binary Implies, cs)
-eatOp ('≡':cs) = (Just $ OpToken $ Binary Equivalent, cs)
+eatOp ('¬':cs) = (Just $ OpToken $ UnaryOp Not, cs)
+eatOp ('&':cs) = (Just $ OpToken $ BinaryOp And, cs)
+eatOp ('|':cs) = (Just $ OpToken $ BinaryOp Or, cs)
+eatOp ('^':cs) = (Just $ OpToken $ BinaryOp Xor, cs)
+eatOp ('⇒':cs) = (Just $ OpToken $ BinaryOp Implies, cs)
+eatOp ('≡':cs) = (Just $ OpToken $ BinaryOp Equivalent, cs)
 eatOp x = (Nothing, x)
 
 eat :: [Token] -> String -> ([Token], String)
