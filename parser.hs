@@ -1,3 +1,5 @@
+import Control.Exception(assert)
+
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
 
@@ -6,6 +8,7 @@ data Binary = And | Or | Xor | Implies | Equivalent deriving (Ord, Eq, Show)
 data Op = UnaryOp Unary | BinaryOp Binary deriving (Ord, Eq, Show)
 data Token = OpToken Op | NameToken String | LeftParen | RightParen deriving (Eq, Show)
 data SyntaxNode = UnaryNode Unary SyntaxNode | BinaryNode SyntaxNode Binary SyntaxNode | NameNode String deriving (Show)
+data ParseElement = ParensElement [ParseElement] | TokenElement Token deriving (Show)
 
 validNameChars = "abcdefghijklmnopqrstuvwxyz"
 validChars = validNameChars ++ "&|^()¬⇒≡ "
@@ -54,3 +57,23 @@ accumulate tokens s = uncurry accumulate $ eat tokens s
 --"x & & y"
 tokenise :: String -> [Token]
 tokenise x = fst $ accumulate [] x
+
+constructParseTree :: [Token] -> ([ParseElement], [Token])
+constructParseTree (LeftParen : ts) =
+    let (inner, right) = constructParseTree ts in
+        let (rightElements, rightRemaining) = constructParseTree right in
+            (ParensElement inner : rightElements, rightRemaining)
+constructParseTree (RightParen : ts) = ([], ts)
+constructParseTree (t : ts) =
+    let (elems, remaining) = constructParseTree ts in
+        (TokenElement t : elems, remaining)
+constructParseTree [] = ([], [])
+
+-- "(a & b) | (c & d)"
+-- "a & b & c"
+-- "(a & b) & c"
+--parseExpr :: [Token] -> SyntaxNode
+--parseExpr [NameToken name] = NameNode name
+--parseExpr (OpToken (UnaryOp Not) : right) = UnaryNode Not (parseExpr right)
+--parseExpr (left:OpToken (BinaryOp op) : right) = BinaryNode (parseExpr [left]) op (parseExpr right)
+--parseExpr _ = undefined
