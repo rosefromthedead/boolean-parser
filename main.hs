@@ -1,7 +1,13 @@
 import Parser
+import TruthTable
 import Data.List (find)
 import Data.Maybe (fromJust)
 import Data.Bits (xor)
+
+function :: String -> [String]
+function x =
+    let tree = parse x in
+        getNames tree
 
 impl :: Bool -> Bool -> Bool
 impl True False = False
