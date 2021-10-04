@@ -1,19 +1,18 @@
 import Control.Exception(assert)
+import Control.Applicative ((<|>))
 
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
 
-data Unary = Not deriving (Ord, Eq, Show)
-data Binary = And | Or | Xor | Implies | Equivalent deriving (Ord, Eq, Show)
-data Op = UnaryOp Unary | BinaryOp Binary deriving (Ord, Eq, Show)
+data Unary = Not deriving (Eq, Show)
+data Binary = And | Or | Xor | Implies | Equivalent deriving (Eq, Show)
+data Op = UnaryOp Unary | BinaryOp Binary deriving (Eq, Show)
 data Token = OpToken Op | NameToken String | LeftParen | RightParen deriving (Eq, Show)
 data SyntaxNode = UnaryNode Unary SyntaxNode | BinaryNode SyntaxNode Binary SyntaxNode | NameNode String deriving (Show)
-data ParseElement = ParensElement [ParseElement] | TokenElement Token deriving (Show)
+data ParseElement = ParensElement [ParseElement] | UnaryOpElement Unary | BinaryOpElement Binary | NameElement String deriving (Show)
 
 validNameChars = "abcdefghijklmnopqrstuvwxyz"
 validChars = validNameChars ++ "&|^()¬⇒≡ "
-
--- Whitespace brackets names ops
 
 eatWhitespace :: String -> String
 eatWhitespace (' ':cs) = eatWhitespace cs
@@ -42,19 +41,18 @@ eatOp ('≡':cs) = (Just $ OpToken $ BinaryOp Equivalent, cs)
 eatOp x = (Nothing, x)
 
 eat :: [Token] -> String -> ([Token], String)
-eat tokens x = case eatParen $ eatWhitespace x of
+eat tokens x = case eatParen x of
     (Just t, cs) -> (tokens ++ [t], cs)
-    (Nothing, _) -> case eatName "" $ eatWhitespace x of
+    (Nothing, _) -> case eatName "" x of
         (Just t, cs) -> (tokens ++ [t], cs)
-        (Nothing, _) -> case eatOp $ eatWhitespace x of
+        (Nothing, _) -> case eatOp x of
             (Just t, cs) -> (tokens ++ [t], cs)
             (Nothing, _) -> undefined
 
 accumulate :: [Token] -> String -> ([Token], String)
 accumulate tokens "" = (tokens, "")
-accumulate tokens s = uncurry accumulate $ eat tokens s
+accumulate tokens s = uncurry accumulate $ eat tokens (eatWhitespace s)
 
---"x & & y"
 tokenise :: String -> [Token]
 tokenise x = fst $ accumulate [] x
 
@@ -72,19 +70,35 @@ wrangleParens (LeftParen : ts) =
         let (rightElements, rightRemaining) = wrangleParens right in
             (ParensElement inner : rightElements, rightRemaining)
 wrangleParens (RightParen : ts) = ([], ts)
-wrangleParens (t : ts) =
+wrangleParens (OpToken (UnaryOp op) : ts) =
     let (elems, remaining) = wrangleParens ts in
-        (TokenElement t : elems, remaining)
+        (UnaryOpElement op : elems, remaining)
+wrangleParens (OpToken (BinaryOp op) : ts) =
+    let (elems, remaining) = wrangleParens ts in
+        (BinaryOpElement op : elems, remaining)
+wrangleParens (NameToken name : ts) =
+    let (elems, remaining) = wrangleParens ts in
+        (NameElement name : elems, remaining)
 wrangleParens [] = ([], [])
 
-parse :: String -> [ParseElement]
-parse s = let ts = tokenise s in fst $ wrangleParens $ assert (checkParens 0 ts) ts
 
--- "(a & b) | (c & d)"
--- "a & b & c"
--- "(a & b) & c"
---parseExpr :: [Token] -> SyntaxNode
---parseExpr [NameToken name] = NameNode name
---parseExpr (OpToken (UnaryOp Not) : right) = UnaryNode Not (parseExpr right)
---parseExpr (left:OpToken (BinaryOp op) : right) = BinaryNode (parseExpr [left]) op (parseExpr right)
---parseExpr _ = undefined
+searchOps :: [ParseElement] -> [ParseElement] -> Binary -> Maybe ([ParseElement], Binary, [ParseElement])
+searchOps left (BinaryOpElement op : es) needle | needle == op = Just (left, op, es)
+searchOps left (e:right) needle = searchOps (left ++ [e]) right needle
+searchOps left [] _ = Nothing
+
+wrangleOps :: [ParseElement] -> SyntaxNode
+wrangleOps [ParensElement inner] = wrangleOps inner
+wrangleOps (UnaryOpElement Not:right) = UnaryNode Not $ wrangleOps right
+wrangleOps [NameElement name] = NameNode name
+wrangleOps list =
+    let search = searchOps [] list in
+        let result = search Equivalent <|> search Implies <|> search Xor <|> search Or <|> search And in
+            case result of
+                Just (left, op, right) -> BinaryNode (wrangleOps left) op (wrangleOps right)
+                Nothing -> undefined
+
+parse :: String -> SyntaxNode
+parse s =
+    let ts = tokenise s in
+        wrangleOps $ fst $ wrangleParens $ assert (checkParens 0 ts) ts
