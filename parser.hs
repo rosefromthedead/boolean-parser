@@ -58,16 +58,27 @@ accumulate tokens s = uncurry accumulate $ eat tokens s
 tokenise :: String -> [Token]
 tokenise x = fst $ accumulate [] x
 
-constructParseTree :: [Token] -> ([ParseElement], [Token])
-constructParseTree (LeftParen : ts) =
-    let (inner, right) = constructParseTree ts in
-        let (rightElements, rightRemaining) = constructParseTree right in
+checkParens :: Int -> [Token] -> Bool
+checkParens x _ | x < 0 = False
+checkParens level (LeftParen : ts) = checkParens (level + 1) ts
+checkParens level (RightParen : ts) = checkParens (level - 1) ts
+checkParens level (x : ts) = checkParens level ts
+checkParens 0 [] = True
+checkParens _ [] = False
+
+wrangleParens :: [Token] -> ([ParseElement], [Token])
+wrangleParens (LeftParen : ts) =
+    let (inner, right) = wrangleParens ts in
+        let (rightElements, rightRemaining) = wrangleParens right in
             (ParensElement inner : rightElements, rightRemaining)
-constructParseTree (RightParen : ts) = ([], ts)
-constructParseTree (t : ts) =
-    let (elems, remaining) = constructParseTree ts in
+wrangleParens (RightParen : ts) = ([], ts)
+wrangleParens (t : ts) =
+    let (elems, remaining) = wrangleParens ts in
         (TokenElement t : elems, remaining)
-constructParseTree [] = ([], [])
+wrangleParens [] = ([], [])
+
+parse :: String -> [ParseElement]
+parse s = let ts = tokenise s in fst $ wrangleParens $ assert (checkParens 0 ts) ts
 
 -- "(a & b) | (c & d)"
 -- "a & b & c"
