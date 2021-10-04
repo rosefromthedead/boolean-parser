@@ -58,7 +58,7 @@ accumulate tokens s = uncurry accumulate $ eat tokens (eatWhitespace s)
 tokenise :: String -> [Token]
 tokenise x = fst $ accumulate [] x
 
-checkParens :: Int -> [Token] -> Bool
+checkParens :: Integer -> [Token] -> Bool
 checkParens x _ | x < 0 = False
 checkParens level (LeftParen : ts) = checkParens (level + 1) ts
 checkParens level (RightParen : ts) = checkParens (level - 1) ts
