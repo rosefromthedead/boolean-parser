@@ -1,3 +1,5 @@
+module Parser where
+
 import Control.Exception(assert)
 import Control.Applicative ((<|>))
 
