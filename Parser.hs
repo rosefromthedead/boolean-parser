@@ -13,8 +13,9 @@ data Token = OpToken Op | NameToken String | LeftParen | RightParen deriving (Eq
 data SyntaxNode = UnaryNode Unary SyntaxNode | BinaryNode SyntaxNode Binary SyntaxNode | NameNode String deriving (Show)
 data ParseElement = ParensElement [ParseElement] | UnaryOpElement Unary | BinaryOpElement Binary | NameElement String deriving (Show)
 
-validNameChars = "abcdefghijklmnopqrstuvwxyz"
+validNameChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 validChars = validNameChars ++ "&|^()¬⇒≡ "
+presetVals = [("true", True), ("false", False), ("1", True), ("0", False)]
 
 eatWhitespace :: String -> String
 eatWhitespace (' ':cs) = eatWhitespace cs

@@ -1,3 +1,5 @@
+module Eval where
+
 import Parser
 import Data.List (find)
 import Data.Maybe (fromJust)
