@@ -35,13 +35,18 @@ function x =
             let evals = enumerateNames names in
                 evaluateIntList names tree evals
 
+replace :: String -> String -> String -> String
+replace i o (x : xs) | [x] == i = o ++ replace i o xs
+                     | otherwise = x : replace i o xs
+replace _ _ "" = ""
+
 formattedMarkdownTable :: String -> String
 formattedMarkdownTable expr =
     let parsedExpr = parse expr in
         let names = getNames parsedExpr in
             let inputs = enumerateNames names in
                 let outputs = evaluateIntList names parsedExpr inputs in
-                    foldl (\line name -> line ++ "|" ++ name) "" names ++ "|`" ++ expr ++ "`|\n" ++
+                    foldl (\line name -> line ++ "|" ++ name) "" names ++ "|`" ++ (replace "|" "\\|" expr) ++ "`|\n" ++
                     "|" ++ concatMap (const "---|") names ++ "---|\n" ++
                     foldl (
                         \line (input, output) -> line ++ foldl (\line val -> line ++ "|" ++ show val) "" input ++ "|" ++ show output ++ "|\n"
