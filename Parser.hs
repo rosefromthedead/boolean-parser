@@ -14,7 +14,13 @@ data SyntaxNode = UnaryNode Unary SyntaxNode | BinaryNode SyntaxNode Binary Synt
 data ParseElement = ParensElement [ParseElement] | UnaryOpElement Unary | BinaryOpElement Binary | NameElement String deriving (Show)
 
 validNameChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-validChars = validNameChars ++ "&|^()¬⇒≡ "
+notChars = "!¬~"
+andChars = "&*."
+orChars = "|+"
+xorChars = "^"
+impliesChars = "⇒→"
+equivalentChars = "≡⇔=⟷"
+validChars = validNameChars ++ notChars ++ andChars ++ orChars ++ xorChars ++ impliesChars ++ equivalentChars ++ "() "
 presetVals = [("true", True), ("false", False), ("1", True), ("0", False)]
 
 eatWhitespace :: String -> String
@@ -35,12 +41,13 @@ eatName [] [] = (Nothing, [])
 eatName soFar [] = (Just $ NameToken soFar, "")
 
 eatOp :: String -> (Maybe Token, String)
-eatOp ('¬':cs) = (Just $ OpToken $ UnaryOp Not, cs)
-eatOp ('&':cs) = (Just $ OpToken $ BinaryOp And, cs)
-eatOp ('|':cs) = (Just $ OpToken $ BinaryOp Or, cs)
-eatOp ('^':cs) = (Just $ OpToken $ BinaryOp Xor, cs)
-eatOp ('⇒':cs) = (Just $ OpToken $ BinaryOp Implies, cs)
-eatOp ('≡':cs) = (Just $ OpToken $ BinaryOp Equivalent, cs)
+eatOp (c : cs)
+  | c `elem` notChars = (Just $ OpToken $ UnaryOp Not, cs)
+  | c `elem` andChars = (Just $ OpToken $ BinaryOp And, cs)
+  | c `elem` orChars = (Just $ OpToken $ BinaryOp Or, cs)
+  | c `elem` xorChars = (Just $ OpToken $ BinaryOp Xor, cs)
+  | c `elem` impliesChars = (Just $ OpToken $ BinaryOp Implies, cs)
+  | c `elem` equivalentChars = (Just $ OpToken $ BinaryOp Equivalent, cs)
 eatOp x = (Nothing, x)
 
 eat :: [Token] -> String -> ([Token], String)
