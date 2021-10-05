@@ -46,7 +46,7 @@ formattedMarkdownTable expr =
         let names = getNames parsedExpr in
             let inputs = enumerateNames names in
                 let outputs = evaluateIntList names parsedExpr inputs in
-                    foldl (\line name -> line ++ "|" ++ name) "" names ++ "|`" ++ (replace "|" "\\|" expr) ++ "`|\n" ++
+                    foldl (\line name -> line ++ "|" ++ name) "" names ++ "|`" ++ replace "|" "\\|" expr ++ "`|\n" ++
                     "|" ++ concatMap (const "---|") names ++ "---|\n" ++
                     foldl (
                         \line (input, output) -> line ++ foldl (\line val -> line ++ "|" ++ show val) "" input ++ "|" ++ show output ++ "|\n"
