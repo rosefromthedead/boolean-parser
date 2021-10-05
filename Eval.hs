@@ -10,7 +10,7 @@ impl True False = False
 impl _ _ = True
 
 eval :: [(String, Bool)] -> SyntaxNode -> Bool
-eval l (UnaryNode Not node) = eval l node
+eval l (UnaryNode Not node) = not $ eval l node
 eval l (BinaryNode left And right) = eval l left && eval l right
 eval l (BinaryNode left Or right) = eval l left || eval l right
 eval l (BinaryNode left Xor right) = eval l left `xor` eval l right
