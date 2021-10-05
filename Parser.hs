@@ -92,14 +92,16 @@ searchOps left [] _ = Nothing
 
 wrangleOps :: [ParseElement] -> SyntaxNode
 wrangleOps [ParensElement inner] = wrangleOps inner
-wrangleOps (UnaryOpElement Not:right) = UnaryNode Not $ wrangleOps right
 wrangleOps [NameElement name] = NameNode name
+wrangleOps (BinaryOpElement _ : _) = undefined
 wrangleOps list =
     let search = searchOps [] list in
         let result = search Equivalent <|> search Implies <|> search Xor <|> search Or <|> search And in
             case result of
                 Just (left, op, right) -> BinaryNode (wrangleOps left) op (wrangleOps right)
-                Nothing -> undefined
+                Nothing -> case list of
+                    (UnaryOpElement Not : right) -> UnaryNode Not $ wrangleOps right
+                    _ -> undefined
 
 parse :: String -> SyntaxNode
 parse s =
