@@ -6,12 +6,12 @@ import Data.List (nub)
 
 getNames :: SyntaxNode -> [String]
 getNames (UnaryNode Not node) = getNames node
-getNames (BinaryNode left op right) = nub $ getNames left ++ getNames right
+getNames (BinaryNode left op right) = getNames left ++ getNames right
 getNames (NameNode node) | node `elem` map fst presetVals  = []
                          | otherwise = [node]
 
-enumerateNames :: [String] -> [[Bool]]
-enumerateNames x = map (intToBits (toInteger $ length x)) [0 .. 2 ^ length x - 1]
+getUniqueNames :: SyntaxNode -> [String]
+getUniqueNames node = nub $ getNames node
 
 -- https://stackoverflow.com/a/28522641
 intToBits :: Integer -> Integer -> [Bool]
@@ -24,16 +24,12 @@ intToBits sz x =  if k == 0
           m = 2^n
           k = x `div` m
 
+enumerateTruthValues :: Integer -> [[Bool]]
+enumerateTruthValues x = map (intToBits x) [0 .. 2 ^ x - 1]
+
 evaluateIntList :: [String] -> SyntaxNode -> [[Bool]] -> [Bool]
 evaluateIntList s node = map
       (\ x -> eval ((++) presetVals $ zip s x) node)
-
-function :: String -> [Bool]
-function x =
-    let tree = parse x in
-        let names = getNames tree in
-            let evals = enumerateNames names in
-                evaluateIntList names tree evals
 
 replace :: String -> String -> String -> String
 replace i o (x : xs) | [x] == i = o ++ replace i o xs
@@ -43,8 +39,8 @@ replace _ _ "" = ""
 formattedMarkdownTable :: String -> String
 formattedMarkdownTable expr =
     let parsedExpr = parse expr in
-        let names = getNames parsedExpr in
-            let inputs = enumerateNames names in
+        let names = getUniqueNames parsedExpr in
+            let inputs = enumerateTruthValues $ toInteger $ length names in
                 let outputs = evaluateIntList names parsedExpr inputs in
                     foldl (\line name -> line ++ "|" ++ name) "" names ++ "|`" ++ replace "|" "\\|" expr ++ "`|\n" ++
                     "|" ++ concatMap (const "---|") names ++ "---|\n" ++
