@@ -2,7 +2,7 @@ module TruthTable where
 
 import Eval
 import Parser
-import Data.List (nub)
+import Data.List (nub, sort)
 
 getNames :: SyntaxNode -> [String]
 getNames (UnaryNode Not node) = getNames node
@@ -39,7 +39,7 @@ replace _ _ "" = ""
 formattedMarkdownTable :: String -> String
 formattedMarkdownTable expr =
     let parsedExpr = parse expr in
-        let names = getUniqueNames parsedExpr in
+        let names = sort $ getUniqueNames parsedExpr in
             let inputs = enumerateTruthValues $ toInteger $ length names in
                 let outputs = evaluateIntList names parsedExpr inputs in
                     foldl (\line name -> line ++ "|" ++ name) "" names ++ "|`" ++ replace "|" "\\|" expr ++ "`|\n" ++
