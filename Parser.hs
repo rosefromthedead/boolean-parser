@@ -59,12 +59,12 @@ eat tokens x = case eatParen x of
             (Just t, cs) -> (tokens ++ [t], cs)
             (Nothing, _) -> undefined
 
-accumulate :: [Token] -> String -> ([Token], String)
-accumulate tokens "" = (tokens, "")
-accumulate tokens s = uncurry accumulate $ eat tokens (eatWhitespace s)
+accumulate :: ([Token], String) -> ([Token], String)
+accumulate (tokens, "") = (tokens, "")
+accumulate (tokens, s) = accumulate $ eat tokens (eatWhitespace s)
 
 tokenise :: String -> [Token]
-tokenise x = fst $ accumulate [] x
+tokenise x = fst $ accumulate ([], x)
 
 checkParens :: Integer -> [Token] -> Bool
 checkParens x _ | x < 0 = False
