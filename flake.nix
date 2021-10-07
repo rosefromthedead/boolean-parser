@@ -10,7 +10,7 @@
         };
         defaultPackage = packages.boolean-parser;
         devShell = pkgs.mkShell {
-          packages = with pkgs; [ ghc haskell-language-server ];
+          packages = with pkgs; [ ghc cabal-install haskell-language-server ];
           inputsFrom = [ packages.boolean-parser ];
         };
       }
