@@ -1,6 +1,5 @@
 module Parser where
 
-import Control.Exception(assert)
 import Control.Applicative ((<|>))
 import Data.Maybe (fromJust)
 
@@ -55,30 +54,24 @@ tokenise :: String -> [Token]
 tokenise "" = []
 tokenise x = let (token, cs) = fromJust $ eatParen x <|> eatName "" x <|> eatOp x in token : tokenise (eatWhitespace cs)
 
-checkParens :: Integer -> [Token] -> Bool
-checkParens x _ | x < 0 = False
-checkParens level (LeftParen : ts) = checkParens (level + 1) ts
-checkParens level (RightParen : ts) = checkParens (level - 1) ts
-checkParens level (x : ts) = checkParens level ts
-checkParens 0 [] = True
-checkParens _ [] = False
-
-wrangleParens :: [Token] -> ([ParseElement], [Token])
-wrangleParens (LeftParen : ts) =
-    let (inner, right) = wrangleParens ts in
-        let (rightElements, rightRemaining) = wrangleParens right in
+wrangleParens :: Bool -> [Token] -> ([ParseElement], [Token])
+wrangleParens shouldTerminate (LeftParen : ts) =
+    let (inner, right) = wrangleParens False ts in
+        let (rightElements, rightRemaining) = wrangleParens shouldTerminate right in
             (ParensElement inner : rightElements, rightRemaining)
-wrangleParens (RightParen : ts) = ([], ts)
-wrangleParens (OpToken (UnaryOp op) : ts) =
-    let (elems, remaining) = wrangleParens ts in
+wrangleParens True (RightParen : ts) = undefined -- expected EOF, found ')'
+wrangleParens False (RightParen : ts) = ([], ts)
+wrangleParens shouldTerminate (OpToken (UnaryOp op) : ts) =
+    let (elems, remaining) = wrangleParens shouldTerminate ts in
         (UnaryOpElement op : elems, remaining)
-wrangleParens (OpToken (BinaryOp op) : ts) =
-    let (elems, remaining) = wrangleParens ts in
+wrangleParens shouldTerminate (OpToken (BinaryOp op) : ts) =
+    let (elems, remaining) = wrangleParens shouldTerminate ts in
         (BinaryOpElement op : elems, remaining)
-wrangleParens (NameToken name : ts) =
-    let (elems, remaining) = wrangleParens ts in
+wrangleParens shouldTerminate (NameToken name : ts) =
+    let (elems, remaining) = wrangleParens shouldTerminate ts in
         (NameElement name : elems, remaining)
-wrangleParens [] = ([], [])
+wrangleParens True [] = ([], [])
+wrangleParens False [] = undefined -- expected ')', found EOF
 
 searchOps :: [ParseElement] -> [ParseElement] -> Binary -> Maybe ([ParseElement], Binary, [ParseElement])
 searchOps left (BinaryOpElement op : es) needle | needle == op = Just (left, op, es)
@@ -101,4 +94,4 @@ wrangleOps list =
 parse :: String -> SyntaxNode
 parse s =
     let ts = tokenise s in
-        wrangleOps $ fst $ wrangleParens $ assert (checkParens 0 ts) ts
+        wrangleOps $ fst $ wrangleParens True ts
