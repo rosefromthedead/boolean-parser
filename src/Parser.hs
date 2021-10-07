@@ -2,6 +2,7 @@ module Parser where
 
 import Control.Exception(assert)
 import Control.Applicative ((<|>))
+import Data.Maybe (fromJust)
 
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
@@ -27,44 +28,32 @@ eatWhitespace :: String -> String
 eatWhitespace (' ':cs) = eatWhitespace cs
 eatWhitespace x = x
 
-eatParen :: String -> (Maybe Token, String)
-eatParen ('(':cs) = (Just LeftParen, cs)
-eatParen (')':cs) = (Just RightParen, cs)
-eatParen x = (Nothing, x)
+eatParen :: String -> Maybe (Token, String)
+eatParen ('(':cs) = Just (LeftParen, cs)
+eatParen (')':cs) = Just (RightParen, cs)
+eatParen x = Nothing
 
-eatName :: String -> String -> (Maybe Token, String)
+eatName :: String -> String -> Maybe (Token, String)
 eatName soFar (c:cs)
   | c `elem` validNameChars = eatName (soFar ++ [c]) cs
-  | soFar == "" = (Nothing, c:cs)
-  | otherwise = (Just $ NameToken soFar, c:cs)
-eatName [] [] = (Nothing, [])
-eatName soFar [] = (Just $ NameToken soFar, "")
+  | soFar == "" = Nothing
+  | otherwise = Just (NameToken soFar, c:cs)
+eatName [] [] = Nothing
+eatName soFar [] = Just (NameToken soFar, "")
 
-eatOp :: String -> (Maybe Token, String)
+eatOp :: String -> Maybe (Token, String)
 eatOp (c : cs)
-  | c `elem` notChars = (Just $ OpToken $ UnaryOp Not, cs)
-  | c `elem` andChars = (Just $ OpToken $ BinaryOp And, cs)
-  | c `elem` orChars = (Just $ OpToken $ BinaryOp Or, cs)
-  | c `elem` xorChars = (Just $ OpToken $ BinaryOp Xor, cs)
-  | c `elem` impliesChars = (Just $ OpToken $ BinaryOp Implies, cs)
-  | c `elem` equivalentChars = (Just $ OpToken $ BinaryOp Equivalent, cs)
-eatOp x = (Nothing, x)
-
-eat :: [Token] -> String -> ([Token], String)
-eat tokens x = case eatParen x of
-    (Just t, cs) -> (tokens ++ [t], cs)
-    (Nothing, _) -> case eatName "" x of
-        (Just t, cs) -> (tokens ++ [t], cs)
-        (Nothing, _) -> case eatOp x of
-            (Just t, cs) -> (tokens ++ [t], cs)
-            (Nothing, _) -> undefined
-
-accumulate :: ([Token], String) -> ([Token], String)
-accumulate (tokens, "") = (tokens, "")
-accumulate (tokens, s) = accumulate $ eat tokens (eatWhitespace s)
+  | c `elem` notChars = Just (OpToken $ UnaryOp Not, cs)
+  | c `elem` andChars = Just (OpToken $ BinaryOp And, cs)
+  | c `elem` orChars = Just (OpToken $ BinaryOp Or, cs)
+  | c `elem` xorChars = Just (OpToken $ BinaryOp Xor, cs)
+  | c `elem` impliesChars = Just (OpToken $ BinaryOp Implies, cs)
+  | c `elem` equivalentChars = Just (OpToken $ BinaryOp Equivalent, cs)
+eatOp x = Nothing
 
 tokenise :: String -> [Token]
-tokenise x = fst $ accumulate ([], x)
+tokenise "" = []
+tokenise x = let (token, cs) = fromJust $ eatParen x <|> eatName "" x <|> eatOp x in token : tokenise (eatWhitespace cs)
 
 checkParens :: Integer -> [Token] -> Bool
 checkParens x _ | x < 0 = False
@@ -90,7 +79,6 @@ wrangleParens (NameToken name : ts) =
     let (elems, remaining) = wrangleParens ts in
         (NameElement name : elems, remaining)
 wrangleParens [] = ([], [])
-
 
 searchOps :: [ParseElement] -> [ParseElement] -> Binary -> Maybe ([ParseElement], Binary, [ParseElement])
 searchOps left (BinaryOpElement op : es) needle | needle == op = Just (left, op, es)
