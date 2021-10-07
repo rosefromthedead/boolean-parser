@@ -34,12 +34,12 @@ eatParen (')':cs) = Just (RightParen, cs)
 eatParen x = Nothing
 
 eatName :: String -> String -> Maybe (Token, String)
-eatName soFar (c:cs)
-  | c `elem` validNameChars = eatName (soFar ++ [c]) cs
-  | soFar == "" = Nothing
-  | otherwise = Just (NameToken soFar, c:cs)
 eatName [] [] = Nothing
-eatName soFar [] = Just (NameToken soFar, "")
+eatName left [] = Just (NameToken left, "")
+eatName left (c : right)
+  | c `elem` validNameChars = eatName (left ++ [c]) right
+  | left == "" = Nothing
+  | otherwise = Just (NameToken left, c : right)
 
 eatOp :: String -> Maybe (Token, String)
 eatOp (c : cs)
