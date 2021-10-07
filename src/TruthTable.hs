@@ -38,3 +38,9 @@ formattedMarkdownTable expr =
                     foldl (
                         \line (input, output) -> line ++ foldl (\line val -> line ++ "|" ++ show val) "" input ++ "|" ++ show output ++ "|\n"
                     ) "" (zip inputs outputs)
+
+satisfiable :: SyntaxNode -> Bool
+satisfiable expr =
+    let names = sort $ getUniqueNames expr in
+        let inputs = transpose $ enumerateTruthValues $ toInteger $ length names in
+            or $ evaluateIntList names expr inputs
