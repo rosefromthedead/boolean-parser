@@ -2,8 +2,9 @@ module Parser where
 
 import Control.Applicative ((<|>))
 import Data.Maybe (fromJust)
-import Data.Bifunctor (first)
+import Data.Bifunctor (first, second)
 import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty, fromList)
+import Data.List (uncons)
 
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
@@ -12,7 +13,7 @@ data Unary = Not deriving (Eq, Show)
 data Binary = And | Or | Xor | Implies | Equivalent deriving (Eq, Show)
 data Op = UnaryOp Unary | BinaryOp Binary deriving (Eq, Show)
 data Token = OpToken Op | NameToken String | LeftParen | RightParen deriving (Eq, Show)
-data ParensTree = ParensNode [ParensTree] | TokenLeaf Token deriving (Show)
+data ParensTree = ParensNode [ParensTree] | TokenLeaf Token deriving (Eq, Show)
 data SyntaxNode = UnaryNode Unary SyntaxNode | BinaryNode SyntaxNode Binary SyntaxNode | NameNode String deriving (Show)
 
 validNameChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
@@ -58,20 +59,18 @@ wrangleParens shouldTerminate (t : ts) =
 wrangleParens True [] = ([], [])
 wrangleParens False [] = undefined -- expected ')', found EOF
 
-searchOps :: [ParensTree] -> [ParensTree] -> Binary -> Maybe ([ParensTree], Binary, [ParensTree])
-searchOps left (TokenLeaf (OpToken (BinaryOp op)) : es) needle | needle == op = Just (left, op, es)
-searchOps left (e:right) needle = searchOps (left ++ [e]) right needle
-searchOps left [] _ = Nothing
+lift :: Monad t => (a, t b) -> t (a, b)
+lift (lhs, rhs) = rhs >>= \rh -> return (lhs, rh)
 
 wrangleOps :: [ParensTree] -> SyntaxNode
 wrangleOps [ParensNode inner] = wrangleOps inner
 wrangleOps [TokenLeaf (NameToken name)] = NameNode name
 wrangleOps (TokenLeaf (OpToken (BinaryOp _)) : _) = undefined
 wrangleOps list =
-    let search = searchOps [] list in
+    let search = (\x -> lift $ second (fmap (first (const x)) . uncons) $ break (\o -> o == TokenLeaf (OpToken $ BinaryOp x)) list) in
         let result = search Equivalent <|> search Implies <|> search Xor <|> search Or <|> search And in
             case result of
-                Just (left, op, right) -> BinaryNode (wrangleOps left) op (wrangleOps right)
+                Just (left, (op, right)) -> BinaryNode (wrangleOps left) op (wrangleOps right)
                 Nothing -> case list of
                     (TokenLeaf (OpToken (UnaryOp Not)) : right) -> UnaryNode Not $ wrangleOps right
                     _ -> undefined
