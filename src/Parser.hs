@@ -3,7 +3,7 @@ module Parser where
 import Control.Applicative ((<|>))
 import Data.Maybe (fromJust)
 import Data.Bifunctor (first)
-import Data.List.NonEmpty
+import Data.List.NonEmpty (NonEmpty ((:|)), nonEmpty, fromList)
 
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
@@ -32,7 +32,7 @@ eatToken :: NonEmpty Char -> Maybe (Token, String)
 eatToken (' ' :| cs) = eatToken =<< nonEmpty cs
 eatToken ('(' :| cs) = Just (LeftParen, cs)
 eatToken (')' :| cs) = Just (RightParen, cs)
-eatToken (c :| cs) | c `elem` validNameChars = Just $ first NameToken (Prelude.span (`elem` validNameChars) (c:cs))
+eatToken (c :| cs) | c `elem` validNameChars = Just $ first NameToken (span (`elem` validNameChars) (c:cs))
 eatToken (c :| cs)
   | c `elem` notChars = Just (OpToken $ UnaryOp Not, cs)
   | c `elem` andChars = Just (OpToken $ BinaryOp And, cs)
