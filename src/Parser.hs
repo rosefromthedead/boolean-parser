@@ -32,8 +32,7 @@ eatToken :: NonEmpty Char -> Maybe (Token, String)
 eatToken (' ' :| cs) = eatToken =<< nonEmpty cs
 eatToken ('(' :| cs) = Just (LeftParen, cs)
 eatToken (')' :| cs) = Just (RightParen, cs)
-eatToken (c :| cs) | c `elem` validNameChars =
-    first NameToken <$> munch (\(c :| cs) -> if c `elem` validNameChars then Just (c, cs) else Nothing) (c:cs)
+eatToken (c :| cs) | c `elem` validNameChars = Just $ first NameToken (Prelude.span (`elem` validNameChars) (c:cs))
 eatToken (c :| cs)
   | c `elem` notChars = Just (OpToken $ UnaryOp Not, cs)
   | c `elem` andChars = Just (OpToken $ BinaryOp And, cs)
