@@ -2,6 +2,8 @@ module Parser where
 
 import Control.Applicative ((<|>))
 import Data.Maybe (fromJust)
+import Data.Bifunctor (first)
+import Data.List.NonEmpty
 
 -- "alice & bob | carol"
 -- "x & ((¬y) | z)"
@@ -23,36 +25,27 @@ equivalentChars = "≡⇔=⟷"
 validChars = validNameChars ++ notChars ++ andChars ++ orChars ++ xorChars ++ impliesChars ++ equivalentChars ++ "() "
 presetVals = [("true", True), ("false", False), ("1", True), ("0", False)]
 
-eatWhitespace :: String -> String
-eatWhitespace (' ':cs) = eatWhitespace cs
-eatWhitespace x = x
+munch :: (NonEmpty a -> Maybe (b, [a])) -> [a] -> Maybe ([b], [a])
+munch f l = (\(left, right) -> maybe ([left], right) (first (left :)) (munch f right)) <$> f (fromList l)
 
-eatParen :: String -> Maybe (Token, String)
-eatParen ('(':cs) = Just (LeftParen, cs)
-eatParen (')':cs) = Just (RightParen, cs)
-eatParen x = Nothing
-
-eatName :: String -> String -> Maybe (Token, String)
-eatName [] [] = Nothing
-eatName left [] = Just (NameToken left, "")
-eatName left (c : right)
-  | c `elem` validNameChars = eatName (left ++ [c]) right
-  | left == "" = Nothing
-  | otherwise = Just (NameToken left, c : right)
-
-eatOp :: String -> Maybe (Token, String)
-eatOp (c : cs)
+eatToken :: NonEmpty Char -> Maybe (Token, String)
+eatToken (' ' :| cs) = eatToken =<< nonEmpty cs
+eatToken ('(' :| cs) = Just (LeftParen, cs)
+eatToken (')' :| cs) = Just (RightParen, cs)
+eatToken (c :| cs) | c `elem` validNameChars =
+    first NameToken <$> munch (\(c :| cs) -> if c `elem` validNameChars then Just (c, cs) else Nothing) (c:cs)
+eatToken (c :| cs)
   | c `elem` notChars = Just (OpToken $ UnaryOp Not, cs)
   | c `elem` andChars = Just (OpToken $ BinaryOp And, cs)
   | c `elem` orChars = Just (OpToken $ BinaryOp Or, cs)
   | c `elem` xorChars = Just (OpToken $ BinaryOp Xor, cs)
   | c `elem` impliesChars = Just (OpToken $ BinaryOp Implies, cs)
   | c `elem` equivalentChars = Just (OpToken $ BinaryOp Equivalent, cs)
-eatOp x = Nothing
+eatToken x = Nothing
 
 tokenise :: String -> [Token]
 tokenise "" = []
-tokenise x = let (token, cs) = fromJust $ eatParen x <|> eatName "" x <|> eatOp x in token : tokenise (eatWhitespace cs)
+tokenise x = fst $ fromJust $ munch eatToken x
 
 wrangleParens :: Bool -> [Token] -> ([ParensTree], [Token])
 wrangleParens shouldTerminate (LeftParen : ts) =
