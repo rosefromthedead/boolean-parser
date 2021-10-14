@@ -42,17 +42,14 @@ tokenise :: String -> [Token]
 tokenise "" = []
 tokenise x = let (token, cs) = fromJust $ eat x in token : tokenise cs
 
-wrangleParens :: Bool -> [Token] -> ([ParensTree], [Token])
-wrangleParens shouldTerminate (LeftParen : ts) =
-    let (inner, right) = wrangleParens False ts in
-        let (rightElements, rightRemaining) = wrangleParens shouldTerminate right in
+wrangleParens :: [Token] -> ([ParensTree], [Token])
+wrangleParens (LeftParen : ts) =
+    let (inner, right) = wrangleParens ts in
+        let (rightElements, rightRemaining) = wrangleParens right in
             (ParensNode inner : rightElements, rightRemaining)
-wrangleParens True (RightParen : ts) = undefined -- expected EOF, found ')'
-wrangleParens False (RightParen : ts) = ([], ts)
-wrangleParens shouldTerminate (t : ts) =
-    let (elems, remaining) = wrangleParens shouldTerminate ts in (TokenLeaf t : elems, remaining)
-wrangleParens True [] = ([], [])
-wrangleParens False [] = undefined -- expected ')', found EOF
+wrangleParens (RightParen : ts) = ([], ts)
+wrangleParens (t : ts) = first (TokenLeaf t :) $ wrangleParens ts
+wrangleParens [] = undefined
 
 searchOps :: [ParensTree] -> [ParensTree] -> Binary -> Maybe ([ParensTree], Binary, [ParensTree])
 searchOps left (TokenLeaf (OpToken (BinaryOp op)) : es) needle | needle == op = Just (left, op, es)
@@ -75,4 +72,4 @@ wrangleOps list =
 parse :: String -> SyntaxNode
 parse s =
     let ts = tokenise s in
-        wrangleOps $ fst $ wrangleParens True ts
+        wrangleOps $ fst $ wrangleParens (LeftParen : ts ++ [RightParen])
