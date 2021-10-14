@@ -70,6 +70,4 @@ wrangleOps list =
                     _ -> undefined
 
 parse :: String -> SyntaxNode
-parse s =
-    let ts = tokenise s in
-        wrangleOps $ fst $ wrangleParens (LeftParen : ts ++ [RightParen])
+parse s = wrangleOps $ fst $ wrangleParens (LeftParen : tokenise s ++ [RightParen])
