@@ -42,14 +42,16 @@ tokenise :: String -> [Token]
 tokenise "" = []
 tokenise x = let (token, cs) = fromJust $ eat x in token : tokenise cs
 
-wrangleParens :: [Token] -> ([ParensTree], [Token])
-wrangleParens (LeftParen : ts) =
-    let (inner, right) = wrangleParens ts in
-        let (rightElements, rightRemaining) = wrangleParens right in
+wrangleParens :: [Token] -> Int -> ([ParensTree], [Token])
+wrangleParens (LeftParen : ts) level =
+    let (inner, right) = wrangleParens ts (level + 1) in
+        let (rightElements, rightRemaining) = wrangleParens right level in
             (ParensNode inner : rightElements, rightRemaining)
-wrangleParens (RightParen : ts) = ([], ts)
-wrangleParens (t : ts) = first (TokenLeaf t :) $ wrangleParens ts
-wrangleParens [] = undefined
+wrangleParens (RightParen : ts) 0 = undefined
+wrangleParens (RightParen : ts) _ = ([], ts)
+wrangleParens (t : ts) level = first (TokenLeaf t :) $ wrangleParens ts level
+wrangleParens [] 0 = ([], [])
+wrangleParens [] _ = undefined
 
 searchOps :: [ParensTree] -> [ParensTree] -> Binary -> Maybe ([ParensTree], Binary, [ParensTree])
 searchOps left (TokenLeaf (OpToken (BinaryOp op)) : es) needle | needle == op = Just (left, op, es)
@@ -70,4 +72,4 @@ wrangleOps list =
                     _ -> undefined
 
 parse :: String -> SyntaxNode
-parse s = wrangleOps $ fst $ wrangleParens (LeftParen : tokenise s ++ [RightParen])
+parse s = wrangleOps $ fst $ wrangleParens (tokenise s) 0
